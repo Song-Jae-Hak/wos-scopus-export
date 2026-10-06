@@ -1,0 +1,13 @@
+{
+  "title": "Web of Science 논문 반출",
+  "description": "등록일(Index Date) 기간을 넣으면 크롬을 자동으로 조작해 WoS 고급 검색 결과를 Excel(Full Record)로 받고, 맨 앞에 RG(받은 날짜) 열을 붙여 저장합니다.",
+  "group": "Web of Science",
+  "icon": "book",
+  "order": 17,
+  "tags": [
+    "Web of Science",
+    "WoS",
+    "Selenium",
+    "엑셀"
+  ]
+}

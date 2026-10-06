@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scopus 논문 EID 반출 · WoS·Scopus 반출</title>
+<link rel="stylesheet" href="/shared/base.css">
+<style>
+  textarea{width:100%;min-height:120px;padding:8px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg);
+    color:var(--ink);font:12.5px/1.55 var(--mono);resize:vertical}
+  textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
+  .badge.warn{background:var(--warn-soft);color:var(--warn)}
+  .badge.err{background:var(--err-soft);color:var(--err)}
+  .quick{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .quick button{border-radius:99px;padding:3px 10px;font-size:12px}
+  .epoch{font:12px/1.6 var(--mono);color:var(--dim);margin-top:8px}
+  .epoch b{color:var(--ink);font-weight:600}
+  .qprev{border:1px solid var(--line);border-radius:6px;background:var(--bg);margin-top:8px}
+  .qprev .qh{display:flex;align-items:center;gap:8px;padding:6px 9px;border-bottom:1px solid var(--line);font-size:12px;font-weight:650}
+  .qprev .qh span{flex:1}
+  .qprev .qh button{padding:2px 8px;font-size:11.5px}
+  .qprev pre{margin:0;padding:8px 9px;font:11.5px/1.55 var(--mono);white-space:pre-wrap;word-break:break-all;color:var(--dim)}
+  details.key summary{cursor:pointer;font-size:12px;color:var(--dim)}
+  details.key[open] summary{margin-bottom:6px}
+  .stats{grid-template-columns:repeat(4,1fr)}
+  @media (max-width:700px){.stats{grid-template-columns:repeat(2,1fr)}}
+  .files{margin:10px 0 0;padding:0;list-style:none;font-size:12.5px;max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:6px}
+  .files li{display:flex;gap:10px;padding:5px 10px;border-bottom:1px solid var(--line)}
+  .files li:last-child{border-bottom:0}
+  .files li span:first-child{flex:1;word-break:break-all}
+  .files li span:last-child{color:var(--dim);white-space:nowrap}
+  .stage{font-size:11px;padding:1px 7px;border-radius:99px;font-weight:650}
+  .stage.final{background:var(--ok-soft);color:var(--ok)}
+  .stage.aip{background:var(--warn-soft);color:var(--warn)}
+  td.eid{font-family:var(--mono);font-size:12px}
+</style>
+<script>
+  try {
+    var t = localStorage.getItem('work-assistant-theme');
+    if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+  } catch (e) {}
+</script>
+</head>
+<body>
+
+<header>
+  <a class="home-link" href="/">← 홈</a>
+  <h1>Scopus 논문 EID 반출 도우미</h1>
+  <span class="spacer"></span>
+  <span class="badge" id="keyBadge">API 키 확인 중…</span>
+</header>
+
+<main>
+  <div class="col">
+    <section class="card">
+      <h2>1. 기간 (ORIG-LOAD-DATE)</h2>
+      <div class="pad">
+        <div class="row2 field">
+          <div><label class="lbl" for="startDate">시작일 <span class="hint">YYYYMMDD</span></label><input type="text" id="startDate" inputmode="numeric" maxlength="8" placeholder="20260801"></div>
+          <div><label class="lbl" for="endDate">마지막일 <span class="hint">YYYYMMDD · 그날 23:59:59까지</span></label><input type="text" id="endDate" inputmode="numeric" maxlength="8" placeholder="20260815"></div>
+        </div>
+        <div class="quick" id="quick">
+          <button type="button" data-q="w1">지난 7일</button>
+          <button type="button" data-q="w2">지난 14일</button>
+          <button type="button" data-q="half">지난 반월(1~15일 / 16~말일)</button>
+          <button type="button" data-q="lastMonth">지난달</button>
+          <button type="button" data-q="thisMonth">이번 달</button>
+        </div>
+        <div class="epoch" id="epoch"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>2. 쿼리</h2>
+      <div class="pad">
+        <div class="field">
+          <label class="lbl" for="template">쿼리 템플릿 <span class="hint"><code>{STAGE}</code> <code>{START}</code> <code>{END}</code> 자리는 자동으로 채워집니다</span></label>
+          <textarea id="template" spellcheck="false"></textarea>
+          <div class="inline" style="margin-top:6px">
+            <button type="button" id="btnResetTpl">기본 쿼리로 되돌리기</button>
+            <span class="hint" id="tplWarn"></span>
+          </div>
+        </div>
+        <div class="qprev"><div class="qh"><span>PUBSTAGE "Final" 쿼리</span><button type="button" data-copy="final">복사</button></div><pre id="qFinal"></pre></div>
+        <div class="qprev"><div class="qh"><span>PUBSTAGE "aip" 쿼리</span><button type="button" data-copy="aip">복사</button></div><pre id="qAip"></pre></div>
+        <div class="row2 field" style="margin-top:12px">
+          <div><label class="lbl" for="count">한 번에 가져올 개수 <span class="hint">count, 보통 25</span></label><input type="number" id="count" min="1" max="200" value="25"></div>
+          <div>
+            <details class="key"><summary>임시 API 키 (선택)</summary>
+              <input type="text" id="tempKey" placeholder=".env 키 대신 이번에만 사용" autocomplete="off">
+            </details>
+          </div>
+        </div>
+        <div class="runbar">
+          <button type="button" class="primary" id="btnFetch">EID 불러오기 (Final + aip)</button>
+          <button type="button" id="btnStop" disabled>중지</button>
+        </div>
+        <div class="progress"><div id="bar"></div></div>
+        <div class="status-line" id="statusLine"></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="col">
+    <section class="card">
+      <h2>3. 결과</h2>
+      <div class="pad" id="resultBox">
+        <div class="empty">기간을 넣고 "EID 불러오기"를 누르면 여기에 결과가 표시됩니다.</div>
+      </div>
+      <div id="previewWrap" hidden>
+        <div class="tabs" id="previewTabs"></div>
+        <div class="tablewrap" id="previewTable"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>4. 잘라서 저장</h2>
+      <div class="pad">
+        <div class="field">
+          <label class="lbl" for="folder">저장 폴더 <span class="hint">한 번 지정하면 기억합니다</span></label>
+          <div class="inline" style="flex-wrap:nowrap">
+            <input type="text" id="folder" placeholder="C:\Users\...\Scopus 반출">
+            <button type="button" id="btnPick" style="white-space:nowrap">폴더 선택</button>
+            <button type="button" id="btnOpen" style="white-space:nowrap">열기</button>
+          </div>
+        </div>
+        <div class="row2 field">
+          <div><label class="lbl" for="chunk">파일당 EID 개수</label><input type="number" id="chunk" min="1" value="40"></div>
+          <div><label class="lbl" for="format">파일 형식</label>
+            <select id="format"><option value="csv">CSV (.csv, UTF-8) · 기본</option><option value="xlsx">엑셀 (.xlsx)</option></select></div>
+        </div>
+        <div class="field">
+          <label class="lbl" for="baseName">파일 이름 <span class="hint">뒤에 _01, _02 … 가 붙습니다</span></label>
+          <input type="text" id="baseName">
+        </div>
+        <div class="field">
+          <label class="check"><input type="checkbox" id="splitByStage"> Final / aip 파일을 따로 저장 (해제하면 합쳐서 저장)</label>
+        </div>
+        <div class="runbar">
+          <button type="button" class="primary" id="btnSaveFiles" disabled>잘라서 저장</button>
+        </div>
+        <div id="saveResult"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>로그</h2>
+      <pre class="log" id="log"></pre>
+    </section>
+  </div>
+</main>
+
+<script src="app.js"></script>
+<script src="/shared/nav.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "title": "Scopus 논문 EID 반출",
+  "description": "기간(등록일)을 넣으면 Scopus에서 Final·Article in Press 논문 EID를 모아, Scopus 내보내기 양식 엑셀로 N개씩 잘라 지정 폴더에 저장합니다.",
+  "group": "Scopus",
+  "icon": "file",
+  "order": 15,
+  "tags": [
+    "Scopus",
+    "EID",
+    "엑셀",
+    "API"
+  ],
+  "requiresEnv": [
+    "SCOPUS_API_KEY"
+  ]
+}

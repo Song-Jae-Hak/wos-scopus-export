@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Web of Science 논문 반출 · WoS·Scopus 반출</title>
+<link rel="stylesheet" href="/shared/base.css">
+<style>
+  textarea{width:100%;min-height:130px;padding:8px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg);
+    color:var(--ink);font:12.5px/1.55 var(--mono);resize:vertical}
+  textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
+  .badge.warn{background:var(--warn-soft);color:var(--warn)}
+  .badge.err{background:var(--err-soft);color:var(--err)}
+  .quick{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .quick button{border-radius:99px;padding:3px 10px;font-size:12px}
+  .conv{font:12px/1.6 var(--mono);color:var(--dim);margin-top:8px}
+  .conv b{color:var(--ink);font-weight:600}
+  .steps{list-style:none;margin:0;padding:0;font-size:13px}
+  .steps li{display:flex;align-items:center;gap:9px;padding:6px 0;border-bottom:1px solid var(--line);color:var(--dim)}
+  .steps li:last-child{border-bottom:0}
+  .steps .dot{width:18px;height:18px;border-radius:50%;border:2px solid var(--line);flex:none;display:grid;place-items:center;font-size:11px}
+  .steps li.done{color:var(--ink)} .steps li.done .dot{background:var(--ok);border-color:var(--ok);color:#fff}
+  .steps li.now{color:var(--accent);font-weight:650} .steps li.now .dot{border-color:var(--accent);border-top-color:transparent;animation:spin 1s linear infinite}
+  .steps li.fail{color:var(--err)} .steps li.fail .dot{background:var(--err);border-color:var(--err);color:#fff}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .stats{grid-template-columns:repeat(4,1fr)}
+  @media (max-width:700px){.stats{grid-template-columns:repeat(2,1fr)}}
+  .env{font-size:12px;color:var(--dim);margin-top:10px;line-height:1.6}
+  .env b{color:var(--ink)}
+</style>
+<script>
+  try {
+    var t = localStorage.getItem('work-assistant-theme');
+    if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+  } catch (e) {}
+</script>
+</head>
+<body>
+
+<header>
+  <a class="home-link" href="/">← 홈</a>
+  <h1>Web of Science 논문 반출</h1>
+  <span class="spacer"></span>
+  <span class="badge" id="chromeBadge">크롬 버전 확인 중…</span>
+</header>
+
+<main>
+  <div class="col">
+    <section class="card">
+      <h2>1. 기간 (Index Date · 등록일)</h2>
+      <div class="pad">
+        <div class="row2 field">
+          <div><label class="lbl" for="startDate">시작일 <span class="hint">YYYYMMDD</span></label><input type="text" id="startDate" inputmode="numeric" maxlength="8" placeholder="20260801"></div>
+          <div><label class="lbl" for="endDate">마지막일 <span class="hint">YYYYMMDD</span></label><input type="text" id="endDate" inputmode="numeric" maxlength="8" placeholder="20260815"></div>
+        </div>
+        <div class="quick" id="quick">
+          <button type="button" data-q="w1">지난 7일</button>
+          <button type="button" data-q="w2">지난 14일</button>
+          <button type="button" data-q="half">지난 반월(1~15일 / 16~말일)</button>
+          <button type="button" data-q="lastMonth">지난달</button>
+          <button type="button" data-q="thisMonth">이번 달</button>
+        </div>
+        <div class="conv" id="conv"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>2. 쿼리 (고급 검색)</h2>
+      <div class="pad">
+        <div class="field">
+          <label class="lbl" for="query">검색식 <span class="hint">고친 내용은 다음에도 그대로 불러옵니다</span></label>
+          <textarea id="query" spellcheck="false"></textarea>
+          <div class="inline" style="margin-top:6px">
+            <button type="button" id="btnResetQuery">기본 쿼리로 되돌리기</button>
+            <span class="hint" id="queryState"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>3. 저장 · 실행</h2>
+      <div class="pad">
+        <div class="field">
+          <label class="lbl" for="folder">저장 폴더 <span class="hint">한 번 지정하면 기억합니다</span></label>
+          <div class="inline" style="flex-wrap:nowrap">
+            <input type="text" id="folder" placeholder="C:\Users\...\WoS 반출">
+            <button type="button" id="btnPick" style="white-space:nowrap">폴더 선택</button>
+            <button type="button" id="btnOpen" style="white-space:nowrap">열기</button>
+          </div>
+        </div>
+        <div class="field">
+          <label class="lbl" for="fileName">파일 이름 <span class="hint">.xlsx · 같은 이름이 있으면 (2)를 붙임</span></label>
+          <input type="text" id="fileName">
+        </div>
+        <div class="row2 field">
+          <div>
+            <label class="lbl" for="slowFactor">사이트가 느릴 때 <span class="hint">대기 시간</span></label>
+            <select id="slowFactor">
+              <option value="1">보통 (1배)</option>
+              <option value="2">느림 (2배)</option>
+              <option value="3">아주 느림 (3배)</option>
+            </select>
+          </div>
+          <div style="align-self:end">
+            <label class="check"><input type="checkbox" id="headless"> 브라우저 창 숨기고 실행</label>
+          </div>
+        </div>
+        <div class="runbar">
+          <button type="button" class="primary" id="btnRun">WoS 반출 시작</button>
+          <button type="button" id="btnStop" disabled>중지</button>
+        </div>
+        <div class="progress"><div id="bar"></div></div>
+        <div class="status-line" id="statusLine"></div>
+        <div class="env" id="envInfo"></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="col">
+    <section class="card">
+      <h2>진행 단계</h2>
+      <div class="pad">
+        <ul class="steps" id="steps"></ul>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>결과</h2>
+      <div class="pad" id="resultBox">
+        <div class="empty">반출을 시작하면 결과가 여기에 표시됩니다.</div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>로그</h2>
+      <pre class="log" id="log"></pre>
+    </section>
+  </div>
+</main>
+
+<script src="app.js"></script>
+<script src="/shared/nav.js" defer></script>
+</body>
+</html>

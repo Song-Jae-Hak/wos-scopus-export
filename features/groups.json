@@ -1,0 +1,14 @@
+[
+  {
+    "id": "Web of Science",
+    "title": "Web of Science",
+    "description": "Clarivate WoS — 논문 반출",
+    "order": 20
+  },
+  {
+    "id": "Scopus",
+    "title": "Scopus",
+    "description": "Elsevier Scopus — 논문 EID 반출",
+    "order": 30
+  }
+]
